@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Fitness Recommendation</title>
+    <style>
+        :root{
+            --bg1:#05060a;
+            --bg2:#090a14;
+            --card: rgba(255,255,255,.06);
+            --card2: rgba(255,255,255,.04);
+            --stroke: rgba(255,255,255,.12);
+            --text: rgba(255,255,255,.92);
+            --muted: rgba(255,255,255,.66);
+            --accent:#9b87f5;
+            --accent2:#3dd6ff;
+            --good:#30d158;
+            --warn:#ff9f0a;
+            --bad:#ff453a;
+            --shadow: 0 24px 70px rgba(0,0,0,.55);
+            color-scheme: dark;
+        }
+
+        *{ box-sizing: border-box; }
+        html, body{ height:100%; }
+        body{
+            margin:0;
+            font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Helvetica Neue", sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(900px 500px at 15% 15%, rgba(155,135,245,.25), transparent 55%),
+                radial-gradient(900px 500px at 85% 20%, rgba(61,214,255,.18), transparent 60%),
+                radial-gradient(900px 500px at 60% 90%, rgba(48,209,88,.10), transparent 55%),
+                linear-gradient(180deg, var(--bg1), var(--bg2));
+            overflow-x:hidden;
+            color-scheme: dark;
+        }
+
+        .bg-noise{
+            position:fixed;
+            inset:0;
+            pointer-events:none;
+            opacity:.10;
+            mix-blend-mode: overlay;
+            background-image:
+                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)' opacity='.55'/%3E%3C/svg%3E");
+        }
+
+        .wrap{
+            width:min(1100px, calc(100% - 40px));
+            margin: 36px auto 60px;
+        }
+
+        header{
+            display:flex;
+            align-items:flex-start;
+            justify-content:space-between;
+            gap:16px;
+            margin-bottom:18px;
+        }
+
+        .title{
+            display:flex;
+            gap:14px;
+            align-items:center;
+        }
+
+        .logo{
+            width:44px;
+            height:44px;
+            border-radius:14px;
+            background:
+                radial-gradient(20px 20px at 30% 30%, rgba(255,255,255,.25), transparent 60%),
+                linear-gradient(135deg, rgba(155,135,245,.95), rgba(61,214,255,.85));
+            box-shadow: 0 18px 45px rgba(155,135,245,.25);
+            position:relative;
+            overflow:hidden;
+        }
+        .logo:after{
+            content:"";
+            position:absolute;
+            inset:-40%;
+            background: conic-gradient(from 0deg, rgba(255,255,255,.0), rgba(255,255,255,.35), rgba(255,255,255,.0));
+            animation: spin 4.4s linear infinite;
+            opacity:.55;
+        }
+        @keyframes spin { to{ transform: rotate(360deg); } }
+
+        h1{
+            margin:0;
+            font-size: clamp(22px, 2.4vw, 30px);
+            letter-spacing: .2px;
+            line-height: 1.15;
+        }
+        .subtitle{
+            margin-top:6px;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .pillbar{
+            display:flex;
+            gap:10px;
+            flex-wrap:wrap;
+            justify-content:flex-end;
+        }
+        .pill{
+            padding:8px 10px;
+            border-radius:999px;
+            border:1px solid var(--stroke);
+            background: rgba(255,255,255,.04);
+            color: rgba(255,255,255,.78);
+            font-size:12px;
+            backdrop-filter: blur(10px);
+        }
+
+        .grid{
+            display:grid;
+            grid-template-columns: 1.05fr .95fr;
+            gap:18px;
+            align-items:start;
+        }
+        @media (max-width: 900px){
+            .grid{ grid-template-columns: 1fr; }
+            .pillbar{ justify-content:flex-start; }
+        }
+
+        .card{
+            background: linear-gradient(180deg, var(--card), var(--card2));
+            border:1px solid var(--stroke);
+            border-radius: 18px;
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(14px);
+            overflow:hidden;
+            position:relative;
+        }
+        .card:before{
+            content:"";
+            position:absolute;
+            inset:-1px;
+            background: radial-gradient(600px 220px at 20% 0%, rgba(155,135,245,.22), transparent 55%);
+            pointer-events:none;
+        }
+
+        .card-body{
+            padding: 16px;
+            position:relative;
+        }
+
+        .card-title{
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:10px;
+            margin-bottom:12px;
+        }
+        .card-title h2{
+            font-size:14px;
+            margin:0;
+            color: rgba(255,255,255,.88);
+            letter-spacing:.2px;
+        }
+
+        .badge{
+            display:inline-flex;
+            align-items:center;
+            gap:8px;
+            padding:7px 10px;
+            border-radius:999px;
+            border:1px solid rgba(255,255,255,.14);
+            background: rgba(0,0,0,.18);
+            color: rgba(255,255,255,.74);
+            font-size:12px;
+            white-space:nowrap;
+        }
+        .dot{
+            width:8px;height:8px;border-radius:50%;
+            background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.8), rgba(255,255,255,.0)), linear-gradient(180deg, var(--accent), var(--accent2));
+            box-shadow: 0 0 0 3px rgba(155,135,245,.12);
+        }
+
+        .form{
+            display:grid;
+            grid-template-columns: 1fr 1fr;
+            gap:12px;
+        }
+        @media (max-width: 560px){
+            .form{ grid-template-columns:1fr; }
+        }
+        .field{
+            display:flex;
+            flex-direction:column;
+            gap:8px;
+        }
+        label{
+            font-size:12px;
+            color: rgba(255,255,255,.70);
+        }
+        input, select{
+            appearance:none;
+            width:100%;
+            padding:12px 12px;
+            border-radius: 12px;
+            border:1px solid rgba(255,255,255,.12);
+            background: rgba(0,0,0,.22);
+            color: var(--text);
+            outline:none;
+            transition: transform .12s ease, border-color .12s ease, box-shadow .12s ease;
+            color-scheme: dark;
+        }
+
+        /* Improve native dropdown menu styling (Windows/Chromium) */
+        select option, select optgroup{
+            background-color: #0b0c12;
+            color: rgba(255,255,255,.90);
+        }
+        select:focus option:checked{
+            background: linear-gradient(135deg, rgba(155,135,245,.85), rgba(61,214,255,.75));
+            color: #070812;
+        }
+        select{
+            background-image:
+                linear-gradient(45deg, transparent 50%, rgba(255,255,255,.65) 50%),
+                linear-gradient(135deg, rgba(255,255,255,.65) 50%, transparent 50%);
+            background-position:
+                calc(100% - 18px) calc(1em + 2px),
+                calc(100% - 13px) calc(1em + 2px);
+            background-size: 5px 5px, 5px 5px;
+            background-repeat: no-repeat;
+            padding-right: 36px;
+        }
+        input:focus, select:focus{
+            border-color: rgba(155,135,245,.55);
+            box-shadow: 0 0 0 6px rgba(155,135,245,.12);
+            transform: translateY(-1px);
+        }
+        input[aria-invalid="true"]{
+            border-color: rgba(255,69,58,.55);
+            box-shadow: 0 0 0 6px rgba(255,69,58,.12);
+        }
+
+        .row-actions{
+            display:flex;
+            gap:10px;
+            flex-wrap:wrap;
+            align-items:center;
+            margin-top: 14px;
+        }
+
+        .btn{
+            border:0;
+            cursor:pointer;
+            padding:12px 14px;
+            border-radius: 14px;
+            font-weight: 650;
+            letter-spacing:.2px;
+            color: rgba(10,10,16,.96);
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            box-shadow: 0 18px 40px rgba(155,135,245,.18);
+            transition: transform .12s ease, filter .12s ease, box-shadow .12s ease;
+            display:inline-flex;
+            align-items:center;
+            gap:10px;
+        }
+        .btn:hover{ transform: translateY(-1px); filter: brightness(1.03); }
+        .btn:active{ transform: translateY(0px) scale(.99); }
+        .btn:disabled{
+            cursor:not-allowed;
+            filter: grayscale(.2) brightness(.9);
+            opacity:.75;
+        }
+        .btn-secondary{
+            background: rgba(255,255,255,.06);
+            color: rgba(255,255,255,.86);
+            border: 1px solid rgba(255,255,255,.14);
+            box-shadow:none;
+        }
+        .btn-secondary:hover{ transform: translateY(-1px); }
+
+        .spinner{
+            width:16px;height:16px;border-radius:50%;
+            border: 2px solid rgba(0,0,0,.18);
+            border-top-color: rgba(0,0,0,.55);
+            animation: spin .8s linear infinite;
+            display:none;
+        }
+        .btn[aria-busy="true"] .spinner{ display:inline-block; }
+
+        .hint{
+            font-size:12px;
+            color: rgba(255,255,255,.62);
+        }
+
+        .results{
+            min-height: 280px;
+        }
+
+        .kpis{
+            display:grid;
+            grid-template-columns: 1fr 1fr;
+            gap:10px;
+            margin-bottom: 12px;
+        }
+        .kpi{
+            border:1px solid rgba(255,255,255,.12);
+            border-radius:14px;
+            padding:12px;
+            background: rgba(0,0,0,.18);
+            position:relative;
+            overflow:hidden;
+        }
+        .kpi:before{
+            content:"";
+            position:absolute;
+            inset:-1px;
+            background: radial-gradient(420px 120px at 0% 0%, rgba(61,214,255,.16), transparent 60%);
+            pointer-events:none;
+        }
+        .kpi .k{ font-size:11px; color: rgba(255,255,255,.66); }
+        .kpi .v{ margin-top:6px; font-size:18px; font-weight:750; }
+        .kpi .s{ margin-top:4px; font-size:12px; color: rgba(255,255,255,.72); }
+
+        .status{
+            margin-top: 10px;
+            padding: 10px 12px;
+            border-radius: 14px;
+            border:1px solid rgba(255,255,255,.12);
+            background: rgba(0,0,0,.16);
+            color: rgba(255,255,255,.78);
+            display:none;
+        }
+        .status.show{ display:block; }
+        .status.good{ border-color: rgba(48,209,88,.25); box-shadow: 0 0 0 6px rgba(48,209,88,.08) inset; }
+        .status.bad{ border-color: rgba(255,69,58,.25); box-shadow: 0 0 0 6px rgba(255,69,58,.08) inset; }
+
+        pre{
+            margin:0;
+            white-space:pre-wrap;
+            word-break:break-word;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+            font-size: 12.5px;
+            line-height: 1.55;
+            color: rgba(255,255,255,.86);
+            display:block;
+        }
+
+        .plan{
+            border-top:1px solid rgba(255,255,255,.10);
+            margin-top: 12px;
+            padding-top: 12px;
+            max-height: 420px;
+            overflow:auto;
+            padding-right: 6px;
+            scrollbar-gutter: stable;
+        }
+
+        .plan::-webkit-scrollbar{ width: 10px; }
+        .plan::-webkit-scrollbar-thumb{
+            background: rgba(255,255,255,.16);
+            border-radius: 999px;
+            border: 2px solid rgba(0,0,0,.18);
+        }
+        .plan::-webkit-scrollbar-track{ background: rgba(0,0,0,.14); border-radius: 999px; }
+
+        .pulse{
+            animation: pulse 1.6s ease-in-out infinite;
+        }
+        @keyframes pulse{
+            0%, 100%{ opacity: .65; }
+            50%{ opacity: 1; }
+        }
+
+        .toast{
+            position:fixed;
+            right: 16px;
+            bottom: 16px;
+            width: min(420px, calc(100% - 32px));
+            padding: 12px 12px;
+            border-radius: 14px;
+            border:1px solid rgba(255,255,255,.14);
+            background: rgba(10,10,16,.72);
+            backdrop-filter: blur(12px);
+            color: rgba(255,255,255,.88);
+            box-shadow: 0 24px 70px rgba(0,0,0,.55);
+            transform: translateY(14px);
+            opacity:0;
+            pointer-events:none;
+            transition: transform .18s ease, opacity .18s ease;
+        }
+        .toast.show{
+            transform: translateY(0px);
+            opacity:1;
+        }
+        .toast .t{ font-weight:700; font-size:13px; }
+        .toast .d{ margin-top:4px; font-size:12px; color: rgba(255,255,255,.70); }
+
+        .footer{
+            margin-top: 14px;
+            color: rgba(255,255,255,.55);
+            font-size: 12px;
+        }
+        a{ color: rgba(155,135,245,.95); text-decoration: none; }
+        a:hover{ text-decoration: underline; }
+    </style>
+</head>
+<body>
+<div class="bg-noise"></div>
+
+<div class="wrap">
+    <header>
+        <div class="title">
+            <div class="logo" aria-hidden="true"></div>
+            <div>
+                <h1>AI Fitness Recommendation</h1>
+                <div class="subtitle">Dynamic workout + nutrition targets using ML (classifier + regressor + clustering)</div>
+            </div>
+        </div>
+        <div class="pillbar">
+            <div class="pill">Mode: <span id="modePill">Ready</span></div>
+        </div>
+    </header>
+
+    <div class="grid">
+        <section class="card" id="formCard">
+            <div class="card-body">
+                <div class="card-title">
+                    <h2>Your profile</h2>
+                    <div class="badge"><span class="dot"></span><span id="liveHint">Fill details and generate plan</span></div>
+                </div>
+
+                <div class="form" id="form">
+                    <div class="field">
+                        <label for="age">Age</label>
+                        <input id="age" inputmode="numeric" placeholder="e.g., 21" />
+                        <div class="hint">18–60 recommended for demo.</div>
+                    </div>
+
+                    <div class="field">
+                        <label for="gender">Gender</label>
+                        <select id="gender">
+                            <option value="male">Male</option>
+                            <option value="female">Female</option>
+                        </select>
+                    </div>
+
+                    <div class="field">
+                        <label for="height">Height (cm)</label>
+                        <input id="height" inputmode="decimal" placeholder="e.g., 172" />
+                    </div>
+
+                    <div class="field">
+                        <label for="weight">Weight (kg)</label>
+                        <input id="weight" inputmode="decimal" placeholder="e.g., 70" />
+                    </div>
+
+                    <div class="field">
+                        <label for="goal">Goal</label>
+                        <select id="goal">
+                            <option value="fat_loss">Fat Loss</option>
+                            <option value="muscle_gain">Muscle Gain</option>
+                            <option value="maintenance" selected>Maintenance</option>
+                            <option value="recomposition">Recomposition</option>
+                        </select>
+                    </div>
+
+                    <div class="field">
+                        <label for="activity">Activity</label>
+                        <select id="activity">
+                            <option value="low">Low</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="high">High</option>
+                        </select>
+                    </div>
+
+                    <div class="field">
+                        <label for="equipment">Equipment</label>
+                        <select id="equipment">
+                            <option value="home">Home</option>
+                            <option value="dumbbells">Dumbbells</option>
+                            <option value="gym" selected>Gym</option>
+                        </select>
+                    </div>
+
+                    <div class="field">
+                        <label for="level">Level</label>
+                        <select id="level">
+                            <option value="beginner">Beginner</option>
+                            <option value="intermediate" selected>Intermediate</option>
+                            <option value="advanced">Advanced</option>
+                        </select>
+                    </div>
+
+                    <div class="field">
+                        <label for="days">Days per week</label>
+                        <select id="days">
+                            <option value="3">3 Days</option>
+                            <option value="4">4 Days</option>
+                            <option value="5">5 Days</option>
+                            <option value="7" selected>7 Days</option>
+                        </select>
+                        <div class="hint">We’ll trim the plan to these days.</div>
+                    </div>
+                </div>
+
+                <div class="row-actions">
+                    <button class="btn" id="goBtn" onclick="predict()">
+                        <span class="spinner" aria-hidden="true"></span>
+                        <span>Generate plan</span>
+                    </button>
+                    <button class="btn btn-secondary" onclick="fillDemo()">Autofill demo</button>
+                    <button class="btn btn-secondary" onclick="clearAll()">Clear</button>
+                    <div class="hint" id="smallStatus">Tip: Press Enter to generate.</div>
+                </div>
+
+                <div class="status" id="statusBox"></div>
+               
+            </div>
+        </section>
+
+        <section class="card results" id="resultsCard">
+            <div class="card-body">
+                <div class="card-title">
+                    <h2>Results</h2>
+                    <div class="badge"><span class="dot"></span><span id="resultHint">Waiting for input</span></div>
+                </div>
+
+                <div class="kpis">
+                    <div class="kpi">
+                        <div class="k">BMI</div>
+                        <div class="v" id="bmiV">—</div>
+                        <div class="s" id="bmiS">—</div>
+                    </div>
+                    <div class="kpi">
+                        <div class="k">Target calories (ML)</div>
+                        <div class="v" id="calV">—</div>
+                        <div class="s" id="segS">—</div>
+                    </div>
+                </div>
+
+                <div class="plan">
+                    <pre id="output" class="pulse">Generate a plan to see your full schedule here.</pre>
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite">
+    <div class="t" id="toastT">Saved</div>
+    <div class="d" id="toastD">—</div>
+</div>
+
+<script>
+const els = {
+    age: document.getElementById("age"),
+    height: document.getElementById("height"),
+    weight: document.getElementById("weight"),
+    goal: document.getElementById("goal"),
+    gender: document.getElementById("gender"),
+    activity: document.getElementById("activity"),
+    equipment: document.getElementById("equipment"),
+    level: document.getElementById("level"),
+    days: document.getElementById("days"),
+    goBtn: document.getElementById("goBtn"),
+    output: document.getElementById("output"),
+    statusBox: document.getElementById("statusBox"),
+    bmiV: document.getElementById("bmiV"),
+    bmiS: document.getElementById("bmiS"),
+    calV: document.getElementById("calV"),
+    segS: document.getElementById("segS"),
+    modePill: document.getElementById("modePill"),
+    liveHint: document.getElementById("liveHint"),
+    resultHint: document.getElementById("resultHint"),
+    toast: document.getElementById("toast"),
+    toastT: document.getElementById("toastT"),
+    toastD: document.getElementById("toastD"),
+};
+
+const STORAGE_KEY = "ai_fitness_profile_v1";
+const BACKEND_ORIGIN = "http://127.0.0.1:5000";
+
+function toast(title, desc){
+    els.toastT.textContent = title;
+    els.toastD.textContent = desc;
+    els.toast.classList.add("show");
+    window.clearTimeout(toast._t);
+    toast._t = window.setTimeout(() => els.toast.classList.remove("show"), 2200);
+}
+
+function setStatus(type, msg){
+    els.statusBox.className = "status show " + (type || "");
+    els.statusBox.textContent = msg;
+}
+function clearStatus(){
+    els.statusBox.className = "status";
+    els.statusBox.textContent = "";
+}
+
+function setBusy(b){
+    els.goBtn.disabled = b;
+    els.goBtn.setAttribute("aria-busy", b ? "true" : "false");
+    els.modePill.textContent = b ? "Predicting…" : "Ready";
+    els.liveHint.textContent = b ? "Contacting backend…" : "Fill details and generate plan";
+    els.resultHint.textContent = b ? "Generating plan…" : "Ready";
+    els.output.classList.toggle("pulse", b);
+}
+
+function parseNum(el, min, max){
+    const v = Number(String(el.value || "").trim());
+    const ok = Number.isFinite(v) && v >= min && v <= max;
+    el.setAttribute("aria-invalid", ok ? "false" : "true");
+    return ok ? v : null;
+}
+
+function buildPayload(){
+    const age = parseNum(els.age, 10, 90);
+    const height = parseNum(els.height, 120, 220);
+    const weight = parseNum(els.weight, 25, 250);
+    if (age === null || height === null || weight === null){
+        throw new Error("Please enter valid age/height/weight.");
+    }
+    return {
+        age: Math.round(age),
+        height: Number(height),
+        weight: Number(weight),
+        goal: els.goal.value,
+        gender: els.gender.value,
+        activity: els.activity.value,
+        equipment: els.equipment.value,
+        level: els.level.value,
+        days: parseInt(els.days.value, 10),
+    };
+}
+
+function saveProfile(){
+    const profile = {
+        age: els.age.value,
+        height: els.height.value,
+        weight: els.weight.value,
+        goal: els.goal.value,
+        gender: els.gender.value,
+        activity: els.activity.value,
+        equipment: els.equipment.value,
+        level: els.level.value,
+        days: els.days.value,
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
+}
+
+function loadProfile(){
+    try{
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
+        const p = JSON.parse(raw);
+        for (const k of ["age","height","weight","goal","gender","activity","equipment","level","days"]){
+            if (p[k] != null && els[k]) els[k].value = p[k];
+        }
+    }catch{}
+}
+
+function typeOut(text){
+    els.output.textContent = "";
+    const s = String(text || "");
+    let i = 0;
+    const tick = () => {
+        i += Math.max(2, Math.floor(s.length / 180));
+        els.output.textContent = s.slice(0, i);
+        // Keep latest lines visible while typing.
+        const planEl = els.output.closest(".plan");
+        if (planEl) planEl.scrollTop = planEl.scrollHeight;
+        if (i < s.length) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+}
+
+function renderResults(data){
+    // KPIs
+    els.bmiV.textContent = data?.bmi ?? "—";
+    els.bmiS.textContent = data?.bmi_status ? `Status: ${data.bmi_status}` : "—";
+
+    els.calV.textContent = data?.target_calories ? `${data.target_calories} kcal` : "—";
+    const seg = data?.user_cluster_label ? data.user_cluster_label : "—";
+    els.segS.textContent = `Segment: ${seg}`;
+
+    // BMI color hint
+    const bmiStatus = String(data?.bmi_status || "").toLowerCase();
+    let color = "rgba(255,255,255,.88)";
+    if (bmiStatus.includes("normal")) color = "var(--good)";
+    else if (bmiStatus.includes("overweight")) color = "var(--warn)";
+    else if (bmiStatus.includes("obese") || bmiStatus.includes("under")) color = "var(--bad)";
+    els.bmiV.style.color = color;
+
+    // Plan text
+    let output =
+        `BMI: ${data.bmi} (${data.bmi_status})\n` +
+        `BMR: ${data.bmr}\n` +
+        `Maintenance Calories: ${data.maintenance_calories}\n` +
+        `Target Calories (ML): ${data.target_calories}\n` +
+        `Protein (g/day): ${data.protein}\n` +
+        (data.user_cluster_label ? `User Segment: ${data.user_cluster_label}\n` : "") +
+        (data.predicted_plan_label ? `Predicted Plan: ${data.predicted_plan_label}\n` : "") +
+        `\n`;
+
+    if (data.workout_plan){
+        for (let day in data.workout_plan) {
+            output += `\n${day}\n`;
+            data.workout_plan[day].forEach(ex => {
+                output += `- ${ex}\n`;
+            });
+        }
+    }
+    typeOut(output);
+}
+
+function fillDemo(){
+    els.age.value = 22;
+    els.gender.value = "male";
+    els.height.value = 172;
+    els.weight.value = 70;
+    els.goal.value = "muscle_gain";
+    els.activity.value = "medium";
+    els.equipment.value = "gym";
+    els.level.value = "intermediate";
+    els.days.value = "7";
+    saveProfile();
+    toast("Autofilled", "Demo profile loaded.");
+}
+
+function clearAll(){
+    for (const k of ["age","height","weight"]) els[k].value = "";
+    clearStatus();
+    els.output.textContent = "Generate a plan to see your full schedule here.";
+    els.output.classList.add("pulse");
+    els.bmiV.textContent = "—";
+    els.bmiS.textContent = "—";
+    els.calV.textContent = "—";
+    els.segS.textContent = "—";
+    toast("Cleared", "Inputs and results cleared.");
+}
+
+function predict() {
+    clearStatus();
+    let data;
+    try{
+        data = buildPayload();
+    }catch(e){
+        setStatus("bad", e.message || String(e));
+        return;
+    }
+
+    saveProfile();
+
+    setBusy(true);
+    els.resultHint.textContent = "Generating plan…";
+
+    const endpoint = BACKEND_ORIGIN + "/predict";
+
+    fetch(endpoint, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(data)
+    })
+    .then(async res => {
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok){
+            const msg = payload?.error ? String(payload.error) : `HTTP ${res.status}`;
+            throw new Error(msg);
+        }
+        return payload;
+    })
+    .then(data => {
+        renderResults(data);
+        setStatus("good", "Plan generated successfully.");
+        toast("Plan ready", "Scroll results for your weekly schedule.");
+    })
+    .catch(err => {
+        setStatus("bad", "Error: " + (err?.message || String(err)));
+        toast("Backend error", "Make sure Flask is running on the given URL.");
+    })
+    .finally(() => {
+        setBusy(false);
+        els.resultHint.textContent = "Ready";
+    });
+}
+
+// Enter key to generate
+document.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") predict();
+});
+
+// autosave on changes
+for (const k of ["age","height","weight","goal","gender","activity","equipment","level","days"]){
+    els[k].addEventListener("change", () => {
+        saveProfile();
+    });
+}
+
+// initial load
+loadProfile();
+</script>
+
+</body>
+</html>
